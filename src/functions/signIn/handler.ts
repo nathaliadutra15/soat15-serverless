@@ -4,13 +4,13 @@ import { middyfy } from '@libs/lambda';
 import * as bcrypt from 'bcryptjs';
 
 import schema from './schema';
-import { findUserByUsername } from '../customerValidator/services/user.service';
+import { findUserByDocument } from '../customerValidator/services/user.service';
 import { generateUserToken } from '../customerValidator/services/jwtGenerator.service';
 
 const signIn: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event) => {
-  const { username, password } = event.body;
+  const { document, password } = event.body;
 
-  const user = await findUserByUsername(username);
+  const user = await findUserByDocument(document);
 
   const isAuthenticated = await bcrypt.compare(password, user?.password ?? '');
 
