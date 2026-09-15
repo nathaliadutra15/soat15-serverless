@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir -p "$DEPLOY_DIR"
           rsync -a --delete ./ "$DEPLOY_DIR"/
-          mkdir -p /var/log/soat15-serverless
+          mkdir -p "$DEPLOY_DIR/logs"
 
       - name: Write .env from secrets
         env:
@@ -61,6 +61,6 @@ jobs:
       - name: Start serverless offline
         working-directory: ${{ env.DEPLOY_DIR }}
         run: |
-          nohup npx serverless offline start > /var/log/soat15-serverless/out.log 2>&1 &
+          nohup npx serverless offline start > "$DEPLOY_DIR/logs/out.log" 2>&1 &
           echo $! > "$DEPLOY_DIR/serverless.pid"
           disown
