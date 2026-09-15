@@ -1,0 +1,110 @@
+name: Build and Deploy Serverless Function
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: soat15-serverless-build
+          path: |
+            .
+            !node_modules
+            !.git
+          retention-days: 1
+
+  deploy:
+    runs-on: self-hosted
+    needs: build
+
+    env:
+      DEPLOY_DIR: /opt/soat15-serverless
+      SERVICE_NAME: soat15-serverless
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: soat15-serverless-build
+          path: .
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync to stable deploy directory
+        run: |
+          sudo mkdir -p "$DEPLOY_DIR"
+          sudo rsync -a --delete ./ "$DEPLOY_DIR"/
+          sudo mkdir -p /var/log/soat15-serverless
+
+      - name: Write .env from secrets
+        env:
+          DB_HOST:     ${{ vars.DB_HOST }}
+          DB_PORT:     ${{ vars.DB_PORT }}
+          DB_NAME:     ${{ vars.DB_NAME }}
+          DB_USER:     ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET:  ${{ secrets.JWT_SECRET }}
+        run: |
+          sudo tee "$DEPLOY_DIR/.env" > /dev/null << EOF
+          DB_HOST=${DB_HOST}
+          DB_PORT=${DB_PORT}
+          DB_NAME=${DB_NAME}
+          DB_USER=${DB_USER}
+          DB_PASSWORD=${DB_PASSWORD}
+          JWT_SECRET=${JWT_SECRET}
+          EOF
+
+      - name: Install systemd service
+        run: |
+          sudo cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
+          sudo systemctl daemon-reload
+
+      - name: Restart service
+        run: |
+          sudo systemctl enable "$SERVICE_NAME"
+          sudo systemctl restart "$SERVICE_NAME"
+          sleep 3
+          sudo systemctl status "$SERVICE_NAME" --no-pager
+
+      - name: Deploy Traefik (Docker Compose)
+        working-directory: /opt/soat15-serverless
+        run: sudo docker compose -f docker-compose.yml up -d
+
+      - name: Reload Traefik
+        run: sudo docker restart traefik
+
+      - name: Health check (via Traefik)
+        run: |
+          sleep 5
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost/sign-in \
+            -H "Content-Type: application/json" \
+            -d '{"document":"healthcheck","password":"healthcheck"}')
+          echo "Status recebido: $status"
+          if [[ "$status" == "400" || "$status" == "401" || "$status" == "404" ]]; then
+            echo "Serviço respondendo via Traefik — OK"
+          else
+            echo "Resposta inesperada via Traefik: $status"
+            exit 1
+          fi

@@ -1,0 +1,14 @@
+http:
+  routers:
+    soat15-serverless:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/`)
+      service: soat15-serverless
+
+  services:
+    soat15-serverless:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: http://host.docker.internal:3001
