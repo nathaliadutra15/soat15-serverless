@@ -55,14 +55,14 @@ jobs:
       - name: Install systemd service
         run: |
           cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
-          systemctl daemon-reload
+          sudo systemctl daemon-reload
 
       - name: Restart service
         run: |
-          systemctl enable "$SERVICE_NAME"
-          systemctl restart "$SERVICE_NAME"
+          sudo systemctl enable "$SERVICE_NAME"
+          sudo systemctl restart "$SERVICE_NAME"
           sleep 3
-          systemctl status "$SERVICE_NAME" --no-pager
+          sudo systemctl status "$SERVICE_NAME" --no-pager
 
       - name: Deploy Traefik (Docker Compose)
         working-directory: /opt/soat15-serverless
