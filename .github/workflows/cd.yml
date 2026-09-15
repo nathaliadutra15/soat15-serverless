@@ -30,9 +30,9 @@ jobs:
 
       - name: Sync to stable deploy directory
         run: |
-          sudo mkdir -p "$DEPLOY_DIR"
-          sudo rsync -a --delete ./ "$DEPLOY_DIR"/
-          sudo mkdir -p /var/log/soat15-serverless
+          mkdir -p "$DEPLOY_DIR"
+          rsync -a --delete ./ "$DEPLOY_DIR"/
+          mkdir -p /var/log/soat15-serverless
 
       - name: Write .env from secrets
         env:
@@ -43,7 +43,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET:  ${{ secrets.JWT_SECRET }}
         run: |
-          sudo tee "$DEPLOY_DIR/.env" > /dev/null << EOF
+          tee "$DEPLOY_DIR/.env" > /dev/null << EOF
           DB_HOST=${DB_HOST}
           DB_PORT=${DB_PORT}
           DB_NAME=${DB_NAME}
@@ -54,22 +54,22 @@ jobs:
 
       - name: Install systemd service
         run: |
-          sudo cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
-          sudo systemctl daemon-reload
+          cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
+          systemctl daemon-reload
 
       - name: Restart service
         run: |
-          sudo systemctl enable "$SERVICE_NAME"
-          sudo systemctl restart "$SERVICE_NAME"
+          systemctl enable "$SERVICE_NAME"
+          systemctl restart "$SERVICE_NAME"
           sleep 3
-          sudo systemctl status "$SERVICE_NAME" --no-pager
+          systemctl status "$SERVICE_NAME" --no-pager
 
       - name: Deploy Traefik (Docker Compose)
         working-directory: /opt/soat15-serverless
-        run: sudo docker compose -f docker-compose.yml up -d
+        run: docker compose -f docker-compose.yml up -d
 
       - name: Reload Traefik
-        run: sudo docker restart traefik
+        run: docker restart traefik
 
       - name: Health check (via Traefik)
         run: |
