@@ -1,95 +1,142 @@
-# Serverless - AWS Node.js Typescript
+# SOAT15 Serverless
 
-This project has been generated using the `aws-nodejs-typescript` template from the [Serverless framework](https://www.serverless.com/).
+Authentication API built with Serverless Framework, AWS Lambda, API Gateway, TypeScript, and PostgreSQL. The service registers customers and authenticates users by document, returning a JWT for use by other APIs.
 
-For detailed instructions, please refer to the [documentation](https://www.serverless.com/framework/docs/providers/aws/).
+## Objective and Scope
 
-## Installation/deployment instructions
+The project focuses on the identity context:
 
-Depending on your preferred package manager, follow the instructions below to deploy your project.
+- register individuals (PF) or legal entities (PJ);
+- normalize and validate CPF or CNPJ;
+- prevent duplicate usernames and documents;
+- store passwords only as bcrypt hashes;
+- authenticate by document and password;
+- issue a JWT containing the identifier, username, and roles (`roles`), valid for 24 hours.
 
-> **Requirements**: NodeJS `lts/fermium (v.14.15.0)`. If you're using [nvm](https://github.com/nvm-sh/nvm), run `nvm use` to ensure you're using the same Node version in local and in your lambda's runtime.
+The currently deployed functions are `signUp` and `signIn`. The `customerValidator` directory contains shared services and validation logic, but it is not an independent route.
 
-### Using NPM
+## Endpoints
 
-- Run `npm i` to install the project dependencies
-- Run `npx sls deploy` to deploy this stack to AWS
+### `POST /auth/sign-up`
 
-### Using Yarn
+Creates a user. The request body must contain:
 
-- Run `yarn` to install the project dependencies
-- Run `yarn sls deploy` to deploy this stack to AWS
-
-## Test your service
-
-This template contains a single lambda function triggered by an HTTP request made on the provisioned API Gateway REST API `/hello` route with `POST` method. The request body must be provided as `application/json`. The body structure is tested by API Gateway against `src/functions/hello/schema.ts` JSON-Schema definition: it must contain the `name` property.
-
-- requesting any other path than `/hello` with any other method than `POST` will result in API Gateway returning a `403` HTTP error code
-- sending a `POST` request to `/hello` with a payload **not** containing a string property named `name` will result in API Gateway returning a `400` HTTP error code
-- sending a `POST` request to `/hello` with a payload containing a string property named `name` will result in API Gateway returning a `200` HTTP status code with a message saluting the provided name and the detailed event processed by the lambda
-
-> :warning: As is, this template, once deployed, opens a **public** endpoint within your AWS account resources. Anybody with the URL can actively execute the API Gateway endpoint and the corresponding lambda. You should protect this endpoint with the authentication method of your choice.
-
-### Locally
-
-In order to test the hello function locally, run the following command:
-
-- `npx sls invoke local -f hello --path src/functions/hello/mock.json` if you're using NPM
-- `yarn sls invoke local -f hello --path src/functions/hello/mock.json` if you're using Yarn
-
-Check the [sls invoke local command documentation](https://www.serverless.com/framework/docs/providers/aws/cli-reference/invoke-local/) for more information.
-
-### Remotely
-
-Copy and replace your `url` - found in Serverless `deploy` command output - and `name` parameter in the following `curl` command in your terminal or in Postman to test your newly deployed application.
-
-```
-curl --location --request POST 'https://myApiEndpoint/dev/hello' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "name": "Frederic"
-}'
+```json
+{
+    "username": "maria",
+    "password": "secure-password",
+    "name": "Maria Silva",
+    "document": "52998224725",
+    "legalNature": "PF"
+}
 ```
 
-## Template features
+Responses: `201` with `id`, `username`, and `name`; `400` for an invalid CPF/CNPJ; `409` when the username or document is already registered; `400` when the body does not match the schema.
 
-### Project structure
+### `POST /auth/sign-in`
 
-The project code base is mainly located within the `src` folder. This folder is divided in:
+Authenticates by document and password:
 
-- `functions` - containing code base and configuration for your lambda functions
-- `libs` - containing shared code base between your lambdas
-
-```
-.
-├── src
-│   ├── functions               # Lambda configuration and source code folder
-│   │   ├── hello
-│   │   │   ├── handler.ts      # `Hello` lambda source code
-│   │   │   ├── index.ts        # `Hello` lambda Serverless configuration
-│   │   │   ├── mock.json       # `Hello` lambda input parameter, if any, for local invocation
-│   │   │   └── schema.ts       # `Hello` lambda input event JSON-Schema
-│   │   │
-│   │   └── index.ts            # Import/export of all lambda configurations
-│   │
-│   └── libs                    # Lambda shared code
-│       └── apiGateway.ts       # API Gateway specific helpers
-│       └── handlerResolver.ts  # Sharable library for resolving lambda handlers
-│       └── lambda.ts           # Lambda middleware
-│
-├── package.json
-├── serverless.ts               # Serverless service file
-├── tsconfig.json               # Typescript compiler configuration
-├── tsconfig.paths.json         # Typescript paths
-└── webpack.config.js           # Webpack configuration
+```json
+{
+    "document": "52998224725",
+    "password": "secure-password"
+}
 ```
 
-### 3rd party libraries
+Responses: `200` with `{ "accessToken": "..." }` or `401` for invalid credentials.
 
-- [json-schema-to-ts](https://github.com/ThomasAribart/json-schema-to-ts) - uses JSON-Schema definitions used by API Gateway for HTTP request validation to statically generate TypeScript types in your lambda's handler code base
-- [middy](https://github.com/middyjs/middy) - middleware engine for Node.Js lambda. This template uses [http-json-body-parser](https://github.com/middyjs/middy/tree/master/packages/http-json-body-parser) to convert API Gateway `event.body` property, originally passed as a stringified JSON, to its corresponding parsed object
-- [@serverless/typescript](https://github.com/serverless/typescript) - provides up-to-date TypeScript definitions for your `serverless.ts` service file
+## Stack and Architecture
 
-### Advanced usage
+- **AWS Lambda + API Gateway:** one function per use case, with managed scaling.
+- **Node.js 22 + TypeScript:** runtime configured in `serverless.ts`.
+- **PostgreSQL:** persistence accessed through the `pg` driver; expected tables are `tb_user`, `tb_user_role`, and `tb_role`.
+- **Middy:** parses JSON received from API Gateway.
+- **bcryptjs:** password hashing with 10 salt rounds.
+- **jsonwebtoken:** JWT signed with `JWT_SECRET` and a 24-hour expiration.
+- **esbuild:** bundles functions for deployment.
+- **Traefik:** optional local proxy exposing the API on port 80.
 
-Any tsconfig.json can be used, but if you do, set the environment variable `TS_NODE_CONFIG` for building the application, eg `TS_NODE_CONFIG=./tsconfig.app.json npx serverless webpack`
+Main flow: client -> API Gateway/Traefik -> Lambda -> PostgreSQL. During registration, the password is validated and hashed before the `INSERT`; during login, the hash is compared and the token is generated only after authentication.
+
+## Prerequisites
+
+- Node.js 22;
+- npm;
+- PostgreSQL accessible from the machine, container, or application network;
+- Docker and Docker Compose only if the local Traefik proxy is used;
+- AWS credentials configured for deployment.
+
+## Local Configuration
+
+Create a `.env` file in the project root. It must not be committed:
+
+```dotenv
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=soat15
+DB_USER=postgres
+DB_PASSWORD=postgres
+JWT_SECRET=replace-with-a-strong-secret
+```
+
+The repository does not contain PostgreSQL migrations or seed data. Before starting the API, the database must exist and contain the tables queried by `src/functions/customerValidator/services/user.service.ts`.
+
+## Local Execution
+
+```bash
+npm install
+npx serverless offline
+```
+
+`serverless-offline` starts the API at `http://localhost:3001`. Test it with:
+
+```bash
+curl -X POST http://localhost:3001/auth/sign-up \
+    -H "Content-Type: application/json" \
+    -d '{"username":"maria","password":"secure-password","name":"Maria Silva","document":"52998224725","legalNature":"PF"}'
+
+curl -X POST http://localhost:3001/auth/sign-in \
+    -H "Content-Type: application/json" \
+    -d '{"document":"52998224725","password":"secure-password"}'
+```
+
+To use local Traefik, keep Serverless Offline running and execute `docker compose up -d`. In that case, use `http://localhost/auth/sign-up` and `http://localhost/auth/sign-in`. The Traefik dashboard is available at `http://localhost:8080`.
+
+## Deployment and Operations
+
+```bash
+npx serverless deploy
+npx serverless info
+npx serverless logs -f signUp --tail
+npx serverless logs -f signIn --tail
+```
+
+Deployment uses AWS in the `us-east-1` region. Environment variables and the JWT secret must be provided through the runtime environment configuration mechanism; do not publish `.env` files or secrets to the repository. The API Gateway endpoint is public by default and must be protected with HTTPS, access controls, rate limits, and observability before production use.
+
+## Project Structure
+
+```text
+src/functions/index.ts                 Registry of deployed functions
+src/functions/signUp                  Registration and request schema
+src/functions/signIn                  Login and request schema
+src/functions/customerValidator       Validation, user access, and JWT
+src/libs                               API Gateway, Middy, and handler helpers
+serverless.ts                          Runtime, plugins, and local configuration
+docker-compose.yml                     Optional Traefik proxy
+docs/rfcs                              Proposals and evolvable technical decisions
+docs/adrs                              Permanent architectural decisions
+```
+
+## Quality and Known Limitations
+
+`package.json` does not currently define automated tests. Before promoting a change, run at least `npx tsc --noEmit`, execute the registration/login flows against a test PostgreSQL database, and verify validation, conflict, and invalid credential responses. The schema currently validates types and required fields, but password length and complexity rules have not yet been defined.
+
+## Technical Decisions
+
+- [System component diagram and request flows](docs/architecture/component-diagram.md)
+- [RFC-001: Execution platform, data, and authentication](docs/rfcs/001-plataforma-dados-autenticacao.md)
+- [ADR-001: HTTP communication with one function per use case](docs/adrs/001-comunicacao-http-funcoes.md)
+- [ADR-002: AWS Lambda managed scaling](docs/adrs/002-escalabilidade-lambda.md)
+
+RFCs record alternatives and decisions that may evolve. ADRs record accepted architectural decisions, their rationale, and consequences.
