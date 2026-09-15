@@ -34,7 +34,7 @@ function getPool(): Pool {
   return pool;
 }
 
-export async function findUserByUsername(username: string): Promise<UserRecord | null> {
+export async function findUserByDocument(document: string): Promise<UserRecord | null> {
   const db = getPool();
 
   const result = await db.query(
@@ -49,9 +49,9 @@ export async function findUserByUsername(username: string): Promise<UserRecord |
      FROM tb_user u
      LEFT JOIN tb_user_role ur ON ur.user_id = u.id
      LEFT JOIN tb_role r ON r.id = ur.role_id
-     WHERE u.username = $1
+     WHERE u.document = $1
      GROUP BY u.id`,
-    [username],
+    [document],
   );
 
   return result.rows[0] ?? null;

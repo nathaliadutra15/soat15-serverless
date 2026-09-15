@@ -20,7 +20,7 @@ export function generateUserToken(user: UserTokenPayload): string {
   };
 
   const options: jwt.SignOptions = {
-    expiresIn: (process.env.JWT_EXPIRES_IN ?? '1h') as jwt.SignOptions['expiresIn'],
+    expiresIn: (3600 * 24) as jwt.SignOptions['expiresIn'],
   };
 
   return jwt.sign(payload, secret, options);

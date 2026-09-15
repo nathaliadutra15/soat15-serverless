@@ -11,10 +11,8 @@ const serverlessConfiguration: AWS = {
     name: 'aws',
     runtime: 'nodejs20.x',
     region: 'us-east-1',
-    stage: 'local',
   },
   functions,
-
   custom: {
     esbuild: {
       bundle: true,
@@ -23,7 +21,9 @@ const serverlessConfiguration: AWS = {
       target: 'node20',
     },
     'serverless-offline': {
-      httpPort: 3000,
+      httpPort: 3001,
+      host: '0.0.0.0',
+      noPrependStageInUrl: true,
     },
     dotenv: {
       path: '.env',

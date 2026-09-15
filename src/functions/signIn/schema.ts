@@ -1,8 +1,8 @@
 export default {
   type: 'object',
   properties: {
-    username: { type: 'string' },
+    document: { type: 'string' },
     password: { type: 'string' },
   },
-  required: ['username', 'password'],
+  required: ['document', 'password'],
 } as const;
