@@ -14,7 +14,6 @@ jobs:
 
     env:
       DEPLOY_DIR: /opt/soat15-serverless
-      SERVICE_NAME: soat15-serverless
 
     steps:
       - name: Checkout repository
@@ -52,35 +51,16 @@ jobs:
           JWT_SECRET=${JWT_SECRET}
           EOF
 
-      - name: Install systemd service
+      - name: Stop previous instance
         run: |
-          sudo cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
-          sudo systemctl daemon-reload
-
-      - name: Restart service
-        run: |
-          sudo systemctl enable "$SERVICE_NAME"
-          sudo systemctl restart "$SERVICE_NAME"
-          sleep 3
-          sudo systemctl status "$SERVICE_NAME" --no-pager
-
-      - name: Deploy Traefik (Docker Compose)
-        working-directory: /opt/soat15-serverless
-        run: docker compose -f docker-compose.yml up -d
-
-      - name: Reload Traefik
-        run: docker restart traefik
-
-      - name: Health check (via Traefik)
-        run: |
-          sleep 5
-          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost/sign-in \
-            -H "Content-Type: application/json" \
-            -d '{"document":"12345","password":"healthcheck"}')
-          echo "Status recebido: $status"
-          if [[ "$status" == "400" || "$status" == "401" || "$status" == "404" ]]; then
-            echo "Serviço respondendo via Traefik — OK"
-          else
-            echo "Resposta inesperada via Traefik: $status"
-            exit 1
+          if [ -f "$DEPLOY_DIR/serverless.pid" ]; then
+            kill "$(cat "$DEPLOY_DIR/serverless.pid")" 2>/dev/null || true
+            sleep 2
           fi
+
+      - name: Start serverless offline
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          nohup npx serverless offline start > /var/log/soat15-serverless/out.log 2>&1 &
+          echo $! > "$DEPLOY_DIR/serverless.pid"
+          disown
