@@ -1,14 +1,32 @@
 http:
   routers:
-    soat15-serverless:
-      entryPoints:
-        - web
-      rule: PathPrefix(`/`)
-      service: soat15-serverless
+    auth:
+      rule: "PathPrefix(`/auth`)"
+      service: auth-service
+      entryPoints: [web]
+      priority: 10
+      middlewares:
+        - strip-auth-prefix
 
+    api:
+      rule: "PathPrefix(`/`)"
+      service: api-service
+      entryPoints: [web]
+      priority: 1
+
+  middlewares:
+    strip-auth-prefix:
+      stripPrefix:
+        prefixes:
+          - "/auth"
+          
   services:
-    soat15-serverless:
+    auth-service:
       loadBalancer:
-        passHostHeader: true
         servers:
-          - url: http://host.docker.internal:3001
+          - url: "http://host.docker.internal:3001"
+
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8000"

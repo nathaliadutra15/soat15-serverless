@@ -9,8 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: self-hosted
+
+    env:
+      DEPLOY_DIR: /opt/soat15-serverless
+      SERVICE_NAME: soat15-serverless
 
     steps:
       - name: Checkout repository
@@ -20,34 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: soat15-serverless-build
-          path: |
-            .
-            !node_modules
-            !.git
-          retention-days: 1
-
-  deploy:
-    runs-on: self-hosted
-    needs: build
-
-    env:
-      DEPLOY_DIR: /opt/soat15-serverless
-      SERVICE_NAME: soat15-serverless
-
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: soat15-serverless-build
-          path: .
 
       - name: Install dependencies
         run: npm ci
@@ -100,7 +76,7 @@ jobs:
           sleep 5
           status=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost/sign-in \
             -H "Content-Type: application/json" \
-            -d '{"document":"healthcheck","password":"healthcheck"}')
+            -d '{"document":"12345","password":"healthcheck"}')
           echo "Status recebido: $status"
           if [[ "$status" == "400" || "$status" == "401" || "$status" == "404" ]]; then
             echo "Serviço respondendo via Traefik — OK"
