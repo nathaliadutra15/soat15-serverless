@@ -54,7 +54,7 @@ jobs:
 
       - name: Install systemd service
         run: |
-          cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
+          sudo cp "$DEPLOY_DIR/deploy/soat15-serverless.service" /etc/systemd/system/
           sudo systemctl daemon-reload
 
       - name: Restart service
