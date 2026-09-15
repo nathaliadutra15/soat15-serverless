@@ -9,7 +9,7 @@ User=root
 WorkingDirectory=/opt/soat15-serverless
 EnvironmentFile=-/opt/soat15-serverless/.env
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node /opt/soat15-serverless/node_modules/serverless/bin/serverless.js offline start
+ExecStart=/usr/bin/env node /opt/soat15-serverless/node_modules/serverless/bin/serverless.js offline start
 Restart=on-failure
 RestartSec=5
 KillSignal=SIGINT
