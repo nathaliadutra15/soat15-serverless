@@ -32,17 +32,22 @@ resource "kubernetes_deployment" "auth-server" {
           resources {
             requests = {
               cpu               = "100m"
-              memory            = "256Mi"
+              memory            = "512Mi"
               ephemeral-storage = "2Gi"
             }
             limits = {
               cpu    = "200m"
-              memory = "512Mi"
+              memory = "1Gi"
             }
           }
 
           port {
             container_port = 3001
+          }
+   
+          env {
+            name = "NODE_OPTIONS"
+            value = "--max-old-space-size=768"
           }
 
           env {
