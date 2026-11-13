@@ -39,7 +39,7 @@ const [clientId, clientSecret] = decoded.split(':');
   };
 };
 
-const buildToken = (clientId: string): TokenResponse => {
+const buildToken = (): TokenResponse => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
@@ -79,7 +79,7 @@ const token = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult
     return formatJSONResponse({ message: 'Invalid client credentials' }, 401);
   }
 
-  return formatJSONResponse(buildToken(credentials.clientId));
+  return formatJSONResponse(buildToken());
 };
 
 export const main = token;
