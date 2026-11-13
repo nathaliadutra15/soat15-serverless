@@ -32,12 +32,12 @@ resource "kubernetes_deployment" "auth-server" {
           resources {
             requests = {
               cpu               = "100m"
-              memory            = "100Mi"
+              memory            = "256Mi"
               ephemeral-storage = "2Gi"
             }
             limits = {
               cpu    = "200m"
-              memory = "100Mi"
+              memory = "512Mi"
             }
           }
 
